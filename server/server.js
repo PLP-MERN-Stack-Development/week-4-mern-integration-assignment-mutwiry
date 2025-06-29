@@ -6,24 +6,25 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+
+// Import models (this will register them with Mongoose)
+require('./models');
+
+// Import database connection
 const connectDB = require('./config/db');
 
 // Import routes
 const postRoutes = require('./routes/postRoutes');
-const {notFound, errorHandler} = require('./middleware/errorHandler');
-const categoryRoutes = require('./routes/categoryRoutes');
-const authRoutes = require('./routes/authRoutes');
+const {notFound, errorHandler} = require('./middleware/errorMiddleware');
+//const categoryRoutes = require('./routes/categoryRoutes');
+//const authRoutes = require('./routes/authRoutes');
 
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-connectDB();
-
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // Middleware
 app.use(cors());
@@ -43,8 +44,8 @@ if (process.env.NODE_ENV === 'development') {
 
 // API routes
 app.use('/api/posts', postRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/auth', authRoutes);
+//app.use('/api/categories', categoryRoutes);
+//app.use('/api/auth', authRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -52,27 +53,23 @@ app.get('/', (req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.statusCode || 500).json({
-    success: false,
-    error: err.message || 'Server Error',
-  });
-});
+app.use(notFound);
+app.use(errorHandler);
 
 // Connect to MongoDB and start server
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
+const startServer = async () => {
+  try {
+    await connectDB();
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
     });
-  })
-  .catch((err) => {
-    console.error('Failed to connect to MongoDB', err);
+  } catch (error) {
+    console.error('Failed to connect to MongoDB', error.message);
     process.exit(1);
-  });
+  }
+};
+
+startServer();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

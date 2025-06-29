@@ -27,40 +27,44 @@ const postSchema = new mongoose.Schema({
     author: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
+        default: null
     },
-    category: {
+    categories: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
-        required: true,
+        required: true
+    }],
+    status: {
+        type: String,
+        enum: ['draft', 'published', 'archived'],
+        default: 'draft',
     },
-    tags: [String],
-    isPublished: {
-        type: Boolean,
-        default: false,
-    },
+    tags: [{
+        type: String,
+        trim: true,
+    }],
     viewCount: {
         type: Number,
         default: 0,
     },
-    comments: [
-        {
-            user: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'User',
-            },
-            content: {
-                type: String,
-                required: true,
-            },
-            createdAt: {
-                type: Date,
-                default: Date.now,
-            },
-        },
-    ],
+    commentCount: {
+        type: Number,
+        default: 0,
+    },
 }, {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
-module.exports = mongoose.model('Post', postSchema);
+// Virtual for post's URL
+postSchema.virtual('url').get(function() {
+    return `/posts/${this.slug}`;
+});
+
+// Indexes
+postSchema.index({ title: 'text', content: 'text' });
+
+// Create and export the model
+const Post = mongoose.model('Post', postSchema);
+module.exports = Post;
