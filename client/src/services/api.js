@@ -4,7 +4,8 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: '/api', // The proxy will handle the full URL
+  
   headers: {
     'Content-Type': 'application/json',
   },
@@ -133,4 +134,4 @@ export const authService = {
   },
 };
 
-export default api; 
+export default api;
