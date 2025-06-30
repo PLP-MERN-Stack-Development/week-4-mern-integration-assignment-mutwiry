@@ -1,10 +1,23 @@
 const express = require('express');
 const router = express.Router();
+const {
+  getPosts,
+  getPost,
+  createPost,
+  updatePost,
+  deletePost,
+} = require('../controllers/postController');
+const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
-const Post = require('../models/PostModel');
-const {getPosts, getPostById, createPost, updatePost, deletePost} = require('../controllers/postController');
- 
-router.route('/').get(getPosts).post(createPost);
-router.route('/:id').get(getPostById).put(updatePost).delete(deletePost);
+// Apply upload middleware to create and update routes
+router.route('/')
+  .get(getPosts)
+  .post(protect, upload.single('featuredImage'), createPost);
+
+router.route('/:id')
+  .get(getPost)
+  .put(protect, upload.single('featuredImage'), updatePost)
+  .delete(protect, deletePost);
 
 module.exports = router;

@@ -1,90 +1,146 @@
 const Post = require('../models/PostModel');
 const asyncHandler = require('../utils/asyncHandler');
+const path = require('path');
 
-// @desc    Fetch all posts
+// @desc    Get all posts with pagination
 // @route   GET /api/posts
 // @access  Public
-exports.getPosts = asyncHandler(async (req, res) => {
-    const posts = await Post.find({}).populate('categories', 'name');
-    res.status(200).json({success:true, count:posts.length, data:posts });
+exports.getPosts = asyncHandler(async (req, res, next) => {
+    try {
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Get total count of documents
+        const total = await Post.countDocuments();
+        
+        // Get paginated posts with category population
+        const posts = await Post.find({})
+            .populate('categories', 'name')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(total / limit);
+        const hasNextPage = page < totalPages;
+        const hasPreviousPage = page > 1;
+
+        // Send response with pagination metadata
+        res.status(200).json({
+            success: true,
+            count: posts.length,
+            total,
+            totalPages,
+            currentPage: page,
+            hasNextPage,
+            hasPreviousPage,
+            data: posts.map(post => ({
+                ...post.toObject(),
+                featuredImage: post.featuredImage ? 
+                    `${req.protocol}://${req.get('host')}/${post.featuredImage.replace(/\\/g, '/')}` : 
+                    null
+            }))
+        });
+
+    } catch (error) {
+        console.error('Error fetching posts:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load posts. Please try again later.',
+            error: error.message
+        });
+    }
 });
 
 // @desc    Get single post
 // @route   GET /api/posts/:id
 // @access  Public
-exports.getPostById = asyncHandler(async (req, res, next) => {
+exports.getPost = asyncHandler(async (req, res, next) => {
     const post = await Post.findById(req.params.id).populate('categories', 'name');
+    
     if (!post) {
-      res.status(404);
-      throw new Error('Post not found');
+        res.status(404);
+        throw new Error('Post not found');
     }
-    res.status(200).json({ success: true, data: post });
+
+    // Convert to object to modify the response
+    const postObject = post.toObject();
+    
+    // Add full URL to the featured image
+    if (postObject.featuredImage) {
+        postObject.featuredImage = `${req.protocol}://${req.get('host')}/${postObject.featuredImage.replace(/\\/g, '/')}`;
+    }
+
+    res.status(200).json({
+        success: true,
+        data: postObject
+    });
 });
 
 // @desc    Create new post
 // @route   POST /api/posts
 // @access  Private (for now, public)
 exports.createPost = asyncHandler(async (req, res, next) => {
-    const { title, content, categories } = req.body;
-    
-    // Basic validation
-    if (!title || !content || !categories || !Array.isArray(categories) || categories.length === 0) {
-      res.status(400);
-      throw new Error('Please provide title, content, and at least one category');
-    }
-    
-    const post = await Post.create({ 
-        title, 
-        content, 
-        categories,
-        // We're not setting author for now since we don't have authentication
-        // It will be set to null as per our model
-        slug: title.toLowerCase()
-            .replace(/\s+/g, '-')
-            .replace(/[^\w-]+/g, '')
-    });
-    
-    res.status(201).json({ success: true, data: post });
+  req.body.author = req.user.id;
+
+  if (req.file) {
+    req.body.featuredImage = req.file.path.replace('public/', '');
+  }
+
+  const post = await Post.create(req.body);
+
+  res.status(201).json({
+    success: true,
+    data: post,
+  });
 });
 
 // @desc    Update a post
 // @route   PUT /api/posts/:id
 // @access  Private
 exports.updatePost = asyncHandler(async (req, res, next) => {
-    let post = await Post.findById(req.params.id);
-    if (!post) {
-      res.status(404);
-      throw new Error('Post not found');
-    }
-    
-    // If updating categories, ensure it's an array with at least one category
-    if (req.body.categories && (!Array.isArray(req.body.categories) || req.body.categories.length === 0)) {
-      res.status(400);
-      throw new Error('Categories must be a non-empty array');
-    }
-    
-    post = await Post.findByIdAndUpdate(
-      req.params.id, 
-      { $set: req.body },
-      {
-        new: true,
-        runValidators: true
-      }
-    ).populate('categories', 'name');
-    
-    res.status(200).json({ success: true, data: post });
+  let post = await Post.findById(req.params.id);
+
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  // Make sure user is post owner
+  if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
+    return res.status(401).json({ success: false, message: 'Not authorized to update this post' });
+  }
+
+  if (req.file) {
+    req.body.featuredImage = req.file.path.replace('public/', '');
+  }
+
+  post = await Post.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(200).json({ success: true, data: post });
 });
 
 // @desc    Delete a post
 // @route   DELETE /api/posts/:id
 // @access  Private
 exports.deletePost = asyncHandler(async (req, res, next) => {
-    const post = await Post.findById(req.params.id);
-    if (!post) {
-      res.status(404);
-      throw new Error('Post not found');
-    }
-    
-    await post.remove();
-    res.status(200).json({ success: true, data: {} });
+  const post = await Post.findById(req.params.id);
+
+  if (!post) {
+    return res.status(404).json({ success: false, message: 'Post not found' });
+  }
+
+  // Make sure user is post owner
+  if (post.author.toString() !== req.user.id && req.user.role !== 'admin') {
+    return res.status(401).json({ success: false, message: 'Not authorized to delete this post' });
+  }
+
+  // You might want to delete the associated image from the filesystem here
+
+  await post.remove();
+
+  res.status(200).json({ success: true, data: {} });
 });

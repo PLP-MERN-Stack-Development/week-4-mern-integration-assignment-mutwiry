@@ -2,16 +2,19 @@
 
 import axios from 'axios';
 
-// Create axios instance with base URL
+// Using Vite proxy in development, empty string means current origin
+const API_URL = import.meta.env.DEV ? '/api' : 'http://localhost:5000/api';
+
+// Create axios instance with default config
 const api = axios.create({
-  baseURL: '/api', // The proxy will handle the full URL
-  
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true
 });
 
-// Add request interceptor for authentication
+// Add request interceptor to include auth token if available
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -39,8 +42,77 @@ api.interceptors.response.use(
   }
 );
 
-// Post API services
-export const postService = {
+// Helper function to handle file uploads
+const createFormData = (data) => {
+  const formData = new FormData();
+  
+  // Append all fields to formData
+  Object.keys(data).forEach(key => {
+    // Handle array fields (like categories)
+    if (Array.isArray(data[key])) {
+      formData.append(key, JSON.stringify(data[key]));
+    } 
+    // Handle file uploads
+    else if (data[key] instanceof File) {
+      formData.append('featuredImage', data[key]);
+    }
+    // Handle other fields
+    else if (data[key] !== null && data[key] !== undefined) {
+      formData.append(key, data[key]);
+    }
+  });
+  
+  return formData;
+};
+
+// API methods
+export const posts = {
+  // Get all posts
+  async getAll(page = 1, limit = 10) {
+    try {
+      const response = await api.get(`/posts?page=${page}&limit=${limit}`);
+      return {
+        data: response.data.data || [],
+        pagination: {
+          currentPage: response.data.currentPage || page,
+          totalPages: response.data.totalPages || 1,
+          totalItems: response.data.total || 0,
+          hasNextPage: response.data.hasNextPage || false,
+          hasPreviousPage: response.data.hasPreviousPage || false,
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      throw error;
+    }
+  },
+  
+  // Get single post
+  get: (id) => api.get(`/posts/${id}`),
+  
+  // Create new post with file upload support
+  create: (postData) => {
+    const isFormData = postData instanceof FormData;
+    return api.post('/posts', isFormData ? postData : createFormData(postData), {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  
+  // Update post with file upload support
+  update: (id, postData) => {
+    const isFormData = postData instanceof FormData;
+    return api.put(`/posts/${id}`, isFormData ? postData : createFormData(postData), {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  
+  // Delete post
+  delete: (id) => api.delete(`/posts/${id}`),
+  
   // Get all posts with optional pagination and filters
   getAllPosts: async (page = 1, limit = 10, category = null) => {
     let url = `/posts?page=${page}&limit=${limit}`;
@@ -57,24 +129,6 @@ export const postService = {
     return response.data;
   },
 
-  // Create a new post
-  createPost: async (postData) => {
-    const response = await api.post('/posts', postData);
-    return response.data;
-  },
-
-  // Update an existing post
-  updatePost: async (id, postData) => {
-    const response = await api.put(`/posts/${id}`, postData);
-    return response.data;
-  },
-
-  // Delete a post
-  deletePost: async (id) => {
-    const response = await api.delete(`/posts/${id}`);
-    return response.data;
-  },
-
   // Add a comment to a post
   addComment: async (postId, commentData) => {
     const response = await api.post(`/posts/${postId}/comments`, commentData);
@@ -88,50 +142,39 @@ export const postService = {
   },
 };
 
-// Category API services
-export const categoryService = {
+export const categories = {
   // Get all categories
-  getAllCategories: async () => {
+  getAll: async () => {
     const response = await api.get('/categories');
     return response.data;
   },
 
   // Create a new category
-  createCategory: async (categoryData) => {
+  create: async (categoryData) => {
     const response = await api.post('/categories', categoryData);
     return response.data;
   },
 };
 
-// Auth API services
-export const authService = {
-  // Register a new user
-  register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
-    return response.data;
-  },
-
-  // Login user
-  login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-    }
-    return response.data;
-  },
-
+export const auth = {
+  // Login
+  login: (credentials) => api.post('/api/auth/login', credentials),
+  
+  // Register
+  register: (userData) => api.post('/api/auth/register', userData),
+  
+  // Get current user
+  getCurrentUser: () => api.get('/api/auth/me'),
+  
   // Logout user
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },
-
-  // Get current user
-  getCurrentUser: () => {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
-  },
 };
 
-export default api;
+export default {
+  posts,
+  categories,
+  auth,
+};
