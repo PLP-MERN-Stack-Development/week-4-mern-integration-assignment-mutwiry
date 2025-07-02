@@ -1,12 +1,27 @@
 const Post = require('../models/PostModel');
 const asyncHandler = require('../utils/asyncHandler');
 
-// @desc    Fetch all posts
+// @desc    Fetch all posts with pagination
 // @route   GET /api/posts
 // @access  Public
 exports.getPosts = asyncHandler(async (req, res) => {
-    const posts = await Post.find({}).populate('categories', 'name');
-    res.status(200).json({success:true, count:posts.length, data:posts });
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const posts = await Post.find({}).populate('categories', 'name').limit(limit).skip(skip);
+    const count = await Post.countDocuments();
+    
+    res.status(200).json({ 
+        success: true, 
+        count: posts.length,
+        totalCount: count,
+        data: posts,
+        pagination: {
+            currentPage: page,
+            totalPages: Math.ceil(count / limit)
+        }
+    });
 });
 
 // @desc    Get single post
