@@ -48,16 +48,38 @@ exports.createPost = asyncHandler(async (req, res, next) => {
       throw new Error('Please provide title, content, and at least one category');
     }
     
-    const post = await Post.create({ 
-        title, 
-        content, 
-        categories,
-        // We're not setting author for now since we don't have authentication
-        // It will be set to null as per our model
-        slug: title.toLowerCase()
-            .replace(/\s+/g, '-')
-            .replace(/[^\w-]+/g, '')
-    });
+    // Generate a base slug from the title
+    const baseSlug = title.toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w-]+/g, '');
+    
+    let slug = baseSlug;
+    let counter = 1;
+    let post;
+    
+    // Keep trying to create the post until we find a unique slug
+    while (true) {
+      try {
+        post = await Post.create({ 
+          title, 
+          content, 
+          categories,
+          slug,
+          // We're not setting author for now since we don't have authentication
+          // It will be set to null as per our model
+        });
+        break; // If we get here, the post was created successfully
+      } catch (error) {
+        // Check if the error is a duplicate key error (code 11000 is MongoDB's duplicate key error)
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.slug) {
+          // Append a random string to make the slug unique
+          slug = `${baseSlug}-${Math.random().toString(36).substring(2, 7)}`;
+        } else {
+          // If it's a different error, re-throw it
+          throw error;
+        }
+      }
+    }
     
     res.status(201).json({ success: true, data: post });
 });

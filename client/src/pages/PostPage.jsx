@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getPostById } from '../services/postService';
-import { format, parseISO, isValid } from 'date-fns';
+import { format, isValid } from 'date-fns';
+import Spinner from '../components/Spinner';
 
 const PostPage = () => {
   const { id } = useParams();
@@ -14,7 +15,7 @@ const PostPage = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown date';
     try {
-      const date = new Date(dateString);
+      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
       return isValid(date) ? format(date, 'MMMM d, yyyy') : 'Invalid date';
     } catch (error) {
       console.error('Error formatting date:', error);
@@ -24,11 +25,35 @@ const PostPage = () => {
 
   useEffect(() => {
     const fetchPost = async () => {
+      if (!id) {
+        console.error('No post ID provided in URL');
+        setError('No post ID provided');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching post with ID:', id);
+      setLoading(true);
+      setError('');
+      
       try {
         const response = await getPostById(id);
-        setPost(response.data);  
+        console.log('API Response:', response);
+        
+        // The backend returns { success: true, data: post } structure
+        if (response?.data?.data) {
+          console.log('Post data:', response.data.data);
+          setPost(response.data.data);
+        } else {
+          console.error('No post data in response:', response);
+          setError('Post not found or empty response');
+        }
       } catch (err) {
-        console.error('Error fetching post:', err);
+        console.error('Error fetching post:', {
+          message: err.message,
+          response: err.response,
+          stack: err.stack
+        });
         setError(err.response?.data?.message || 'Failed to load post. Please try again later.');
       } finally {
         setLoading(false);
@@ -40,29 +65,34 @@ const PostPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <Spinner />
+        <p className="mt-4 text-gray-600">Loading post {id ? `#${id}` : ''}...</p>
       </div>
     );
   }
 
   if (error || !post) {
+    console.log('Rendering error state:', { error, hasPost: !!post });
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+              <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error || 'Post not found'}</p>
+            <h3 className="mt-3 text-lg font-medium text-gray-900">Post not found</h3>
+            <div className="mt-2 text-sm text-gray-500">
+              <p>{error || 'The post you are looking for does not exist or has been removed.'}</p>
+            </div>
+            <div className="mt-6">
               <button
-                onClick={() => navigate(-1)}
-                className="mt-2 text-sm text-indigo-600 hover:text-indigo-500"
+                onClick={() => navigate('/')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                ← Back to posts
+                ← Back to home
               </button>
             </div>
           </div>
@@ -78,12 +108,12 @@ const PostPage = () => {
           <div className="px-6 py-8 sm:p-10">
             <header className="mb-8">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                {post.title}
+                {post.title || 'Untitled Post'}
               </h1>
               
               <div className="flex items-center text-sm text-gray-500 mb-6">
                 <span>Posted on {formatDate(post.createdAt)}</span>
-                {post.updatedAt > post.createdAt && (
+                {post.updatedAt && post.updatedAt > post.createdAt && (
                   <span className="ml-2">
                     (Updated on {formatDate(post.updatedAt)})
                   </span>
@@ -94,10 +124,10 @@ const PostPage = () => {
                 <div className="flex flex-wrap gap-2 mb-6">
                   {post.categories.map(category => (
                     <span 
-                      key={category._id} 
+                      key={category._id || category} 
                       className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
                     >
-                      {category.name}
+                      {category.name || category}
                     </span>
                   ))}
                 </div>
@@ -105,7 +135,11 @@ const PostPage = () => {
             </header>
             
             <div className="prose max-w-none">
-              <p className="whitespace-pre-line">{post.content}</p>
+              {post.content ? (
+                <div className="whitespace-pre-line">{post.content}</div>
+              ) : (
+                <p className="text-gray-500 italic">No content available for this post.</p>
+              )}
             </div>
           </div>
           
@@ -120,7 +154,7 @@ const PostPage = () => {
               
               {post.userId && (
                 <div className="text-sm text-gray-500">
-                  Posted by: {post.userId.name || 'Unknown author'}
+                  Posted by: {typeof post.userId === 'object' ? post.userId.name : 'Unknown author'}
                 </div>
               )}
             </div>
