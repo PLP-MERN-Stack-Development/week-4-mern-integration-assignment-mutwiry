@@ -8,13 +8,21 @@ import Layout from '../components/Layout';
 export default function CreatePost() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { execute, loading } = useApi(createPost, false);
+  const { execute, loading } = useApi(createPost);
 
   const handleSubmit = async (postData) => {
     try {
-      const response = await execute(postData);
+      // Ensure categories is an array as expected by the backend
+      const postToCreate = {
+        ...postData,
+        categories: postData.category ? [postData.category] : []
+      };
+      
+      const response = await execute(postToCreate);
       if (response && response.data) {
-        return response; // This will be used by PostForm for navigation
+        // Navigate to the post page using the correct path
+        navigate(`/posts/${response.data._id}`);
+        return response;
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Failed to create post';
@@ -36,6 +44,7 @@ export default function CreatePost() {
           <PostForm 
             onSubmit={handleSubmit} 
             isEditing={false}
+            loading={loading}
           />
         </div>
       </div>
