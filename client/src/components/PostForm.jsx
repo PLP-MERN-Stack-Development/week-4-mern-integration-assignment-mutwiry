@@ -40,8 +40,8 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
     try {
       await onSubmit({ 
         ...formData,
-        // Ensure we only include the category if one is selected
-        category: formData.category || undefined
+        // Keep the field name consistent with the backend
+        categories: formData.category ? [formData.category] : []
       });
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred while saving the post');

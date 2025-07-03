@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import PostForm from '../components/PostForm';
 import { createPost } from '../services/postService';
-import Layout from '../components/Layout';
 
 export default function CreatePost() {
   const [error, setError] = useState('');
@@ -30,22 +29,20 @@ export default function CreatePost() {
   };
 
   return (
-    <Layout>
-      <div className="py-8 px-4">
-        <div className="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6 text-gray-900">Create New Post</h1>
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
-              <p>{error}</p>
-            </div>
-          )}
-          <PostForm 
-            onSubmit={handleSubmit} 
-            isEditing={false}
-            loading={loading}
-          />
-        </div>
+    <div className="py-8 px-4">
+      <div className="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-6 text-gray-900">Create New Post</h1>
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+            <p>{error}</p>
+          </div>
+        )}
+        <PostForm 
+          onSubmit={handleSubmit} 
+          isEditing={false}
+          loading={loading}
+        />
       </div>
-    </Layout>
+    </div>
   );
 }
