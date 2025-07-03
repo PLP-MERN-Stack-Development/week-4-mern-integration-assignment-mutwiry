@@ -1,1 +1,15 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* Custom CSS variables for theming */
+:root {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Lexend', system-ui, sans-serif;
+  --color-primary: #0A7280;
+  --color-secondary: #BAD7DB;
+}
+
+[data-theme="dark"] {
+  --color-primary: #BAD7DB;
+  --color-secondary: #0A7280;
+}
