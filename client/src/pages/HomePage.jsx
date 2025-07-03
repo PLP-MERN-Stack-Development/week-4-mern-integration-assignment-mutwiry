@@ -1,11 +1,15 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import { getAllPosts as fetchAllPosts } from '../services/postService';
 
 export default function HomePage() {
   // Use our custom hook to call the API
-  const { data, error, loading, execute: fetchPosts } = useApi(fetchAllPosts, true);
+  const { data, error, loading, execute } = useApi(fetchAllPosts, false);
+
+  const fetchPosts = useCallback(() => {
+    return execute();
+  }, [execute]);
 
   useEffect(() => {
     fetchPosts();

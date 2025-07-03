@@ -35,15 +35,23 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submit triggered');
     setError('');
 
     try {
+      console.log('Calling onSubmit with data:', {
+        ...formData,
+        categories: formData.category ? [formData.category] : []
+      });
+      
       await onSubmit({ 
         ...formData,
         // Keep the field name consistent with the backend
         categories: formData.category ? [formData.category] : []
       });
+      console.log('onSubmit completed successfully');
     } catch (err) {
+      console.error('Error in form submission:', err);
       setError(err.response?.data?.message || 'An error occurred while saving the post');
       console.error('Form submission error:', err);
     }

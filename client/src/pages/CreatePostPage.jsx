@@ -1,63 +1,125 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import PostForm from '../components/PostForm';
 import { createPost } from '../services/postService';
 
 export default function CreatePost() {
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState({ show: false, postId: null });
   const navigate = useNavigate();
   const location = useLocation();
-  const { execute, loading } = useApi(createPost);
+  const { execute, loading, data, error: apiError } = useApi(createPost, false);
 
   // Clear success message when location changes
   useEffect(() => {
-    setSuccess('');
+    return () => {
+      setSuccess({ show: false, postId: null });
+    };
   }, [location.pathname]);
 
+  // Handle successful post creation
+  useEffect(() => {
+    console.log('Checking data for success:', data);
+    if (data && (data._id || (data.data && data.data._id))) {
+      const postId = data._id || data.data._id;
+      console.log('Post created successfully with ID:', postId);
+      setSuccess({ show: true, postId });
+    }
+  }, [data]);
+
+  // Handle API errors
+  useEffect(() => {
+    if (apiError) {
+      console.error('API Error:', apiError);
+      setError(apiError);
+    }
+  }, [apiError]);
+
   const handleSubmit = async (postData) => {
+    console.log('Form submitted with data:', postData);
+    setError('');
+    
     try {
-      setError('');
-      const response = await execute({
-        ...postData,
-        // Ensure categories is an array as expected by the backend
+      // Prepare the data to send
+      const postToCreate = {
+        title: postData.title,
+        content: postData.content,
         categories: postData.category ? [postData.category] : []
-      });
+      };
       
-      if (response?.data?._id) {
-        setSuccess('Post created successfully! Redirecting...');
-        setTimeout(() => {
-          navigate(`/posts/${response.data._id}`);
-        }, 1500);
-      }
-      return response;
+      console.log('Post data being sent:', postToCreate);
+      
+      // Make the API call
+      await execute(postToCreate);
+      
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to create post. Please try again.';
-      setError(errorMessage);
+      console.error('Error in form submission:', err);
+      setError(err.message || 'Failed to create post. Please try again.');
       throw err; // Re-throw to be caught by PostForm
     }
   };
 
+  // Success message component
+  const SuccessMessage = () => (
+    <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+      <div className="flex">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3">
+          <p className="text-sm text-green-700">
+            Post created successfully!
+          </p>
+          <div className="mt-2">
+            <Link
+              to={`/posts/${success.postId}`}
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              View Post
+            </Link>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="ml-2 inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Back to Home
+            </button>
+            <button
+              type="button"
+              onClick={() => setSuccess({ show: false, postId: null })}
+              className="ml-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            >
+              Create Another Post
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="py-8 px-4">
-      <div className="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-gray-900">Create New Post</h1>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-2xl font-bold mb-6">Create New Post</h1>
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
-            <p>{error}</p>
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
           </div>
         )}
-        {success && (
-          <div className="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded">
-            <p>{success}</p>
+        {success.show ? (
+          <div>
+            <SuccessMessage />
+            <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Create another post</h2>
+              <PostForm onSubmit={handleSubmit} loading={loading} />
+            </div>
           </div>
+        ) : (
+          <PostForm onSubmit={handleSubmit} loading={loading} />
         )}
-        <PostForm 
-          onSubmit={handleSubmit} 
-          isEditing={false}
-          loading={loading}
-        />
       </div>
     </div>
   );
