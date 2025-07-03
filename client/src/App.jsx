@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage';
 import PostPage from './pages/PostPage';
 import CreatePostPage from './pages/CreatePostPage';
 import EditPostPage from './pages/EditPostPage';
+import DeletePostPage from './pages/DeletePostPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="posts/:id" element={<PostPage />} />
           <Route path="create-post" element={<CreatePostPage />} />
           <Route path="edit-post/:id" element={<EditPostPage />} />
+          <Route path="delete-post/:id" element={<DeletePostPage />} />
         </Route>
       </Routes>
     </Router>
