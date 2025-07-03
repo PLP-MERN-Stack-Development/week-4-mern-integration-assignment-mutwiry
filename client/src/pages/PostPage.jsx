@@ -145,12 +145,20 @@ const PostPage = () => {
           
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 sm:px-10">
             <div className="flex justify-between items-center">
-              <button
-                onClick={() => navigate(-1)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                ← Back to posts
-              </button>
+              <div className="space-x-3">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  ← Back to posts
+                </button>
+                <button
+                  onClick={() => navigate(`/edit-post/${id}`)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Edit Post
+                </button>
+              </div>
               
               {post.userId && (
                 <div className="text-sm text-gray-500">
