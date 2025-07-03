@@ -12,20 +12,18 @@ export default function CreatePost() {
 
   const handleSubmit = async (postData) => {
     try {
-      // Ensure categories is an array as expected by the backend
-      const postToCreate = {
+      const response = await execute({
         ...postData,
+        // Ensure categories is an array as expected by the backend
         categories: postData.category ? [postData.category] : []
-      };
+      });
       
-      const response = await execute(postToCreate);
-      if (response && response.data) {
-        // Navigate to the post page using the correct path
+      if (response?.data?._id) {
         navigate(`/posts/${response.data._id}`);
-        return response;
       }
+      return response;
     } catch (err) {
-      const errorMessage = err.response?.data?.message || 'Failed to create post';
+      const errorMessage = err.response?.data?.message || 'Failed to create post. Please try again.';
       setError(errorMessage);
       throw err; // Re-throw to be caught by PostForm
     }
@@ -33,12 +31,12 @@ export default function CreatePost() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold mb-6">Create New Post</h1>
+      <div className="py-8 px-4">
+        <div className="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold mb-6 text-gray-900">Create New Post</h1>
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+              <p>{error}</p>
             </div>
           )}
           <PostForm 

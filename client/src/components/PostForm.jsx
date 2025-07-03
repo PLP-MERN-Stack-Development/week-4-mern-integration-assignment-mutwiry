@@ -1,25 +1,37 @@
 import { useState, useEffect } from 'react';
 
 export default function PostForm({ onSubmit, initialData = {}, isEditing = false, loading = false }) {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    category: ''
+  });
   const [error, setError] = useState('');
-  const [categories, setCategories] = useState([
+  
+  // Static categories - in a real app, these would come from an API
+  const categories = [
     { _id: '655e8b4e4a781e22a7a4f4d2', name: 'Tech' }, 
     { _id: '655e8b584a781e22a7a4f4d5', name: 'Lifestyle' }
-  ]);
-  const [category, setCategory] = useState('');
+  ];
 
   // Initialize form with initialData when it changes
   useEffect(() => {
     if (isEditing && initialData) {
-      setTitle(initialData.title || '');
-      setContent(initialData.content || '');
-      if (initialData.category) {
-        setCategory(initialData.category._id || '');
-      }
+      setFormData({
+        title: initialData.title || '',
+        content: initialData.content || '',
+        category: initialData.category?._id || ''
+      });
     }
   }, [initialData, isEditing]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,18 +39,18 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
 
     try {
       await onSubmit({ 
-        title, 
-        content,
-        category: category || undefined // Only include if category is selected
+        ...formData,
+        // Ensure we only include the category if one is selected
+        category: formData.category || undefined
       });
     } catch (err) {
-      // Error is already handled in the parent component
+      setError(err.response?.data?.message || 'An error occurred while saving the post');
       console.error('Form submission error:', err);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
       {error && (
         <div className="p-3 bg-red-100 text-red-700 rounded-md">
           {error}
@@ -51,9 +63,10 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
         </label>
         <input
           id="title"
+          name="title"
           type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          value={formData.title}
+          onChange={handleChange}
           required
           disabled={loading}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
@@ -67,8 +80,9 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
         </label>
         <select
           id="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          name="category"
+          value={formData.category}
+          onChange={handleChange}
           disabled={loading}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
         >
@@ -87,9 +101,10 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
         </label>
         <textarea
           id="content"
-          value={content}
+          name="content"
+          value={formData.content}
           rows={10}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={handleChange}
           required
           disabled={loading}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
@@ -97,19 +112,21 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
         />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end space-x-3">
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          disabled={loading}
+          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+        >
+          Cancel
+        </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
-          {loading ? (
-            'Saving...'
-          ) : isEditing ? (
-            'Update Post'
-          ) : (
-            'Create Post'
-          )}
+          {loading ? 'Saving...' : isEditing ? 'Update Post' : 'Create Post'}
         </button>
       </div>
     </form>
