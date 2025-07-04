@@ -134,7 +134,6 @@ postSchema.virtual('url').get(function() {
 postSchema.index({ title: 'text', content: 'text' });
 postSchema.index({ user: 1, status: 1 });
 postSchema.index({ status: 1, publishedAt: -1 });
-postSchema.index({ slug: 1 }, { unique: true });
 
 // Create and export the model
 const Post = mongoose.model('Post', postSchema);

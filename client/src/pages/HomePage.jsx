@@ -1,22 +1,34 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import { getAllPosts as fetchAllPosts } from '../services/postService';
 
 export default function HomePage() {
-  // Use our custom hook to call the API
-  const { data, error, loading, execute } = useApi(fetchAllPosts, false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+  
+  // Use our custom hook to call the API with pagination
+  const { data, error, loading, execute } = useApi(
+    useCallback(() => fetchAllPosts(currentPage), [currentPage]),
+    true // Set immediate to true to fetch on mount and when currentPage changes
+  );
 
-  const fetchPosts = useCallback(() => {
-    return execute();
-  }, [execute]);
-
+  // Update pagination when data changes
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    if (data?.pagination) {
+      setPagination(data.pagination);
+    }
+  }, [data]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination?.totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  if (loading && !data) return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  if (error) return <div className="text-red-500 text-center p-4">Error: {error}</div>;
 
   // Ensure we have data and it's an array before mapping
   const posts = data?.data || [];
@@ -78,6 +90,35 @@ export default function HomePage() {
           </div>
         ))}
       </div>
+      
+      {/* Pagination Controls */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-4 mt-8">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={pagination.currentPage === 1 || loading}
+            className={`px-4 py-2 rounded-md ${pagination.currentPage === 1 || loading 
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+          >
+            Previous
+          </button>
+          
+          <span className="text-gray-700">
+            Page {pagination.currentPage} of {pagination.totalPages}
+          </span>
+          
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={pagination.currentPage === pagination.totalPages || loading}
+            className={`px-4 py-2 rounded-md ${pagination.currentPage === pagination.totalPages || loading 
+              ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

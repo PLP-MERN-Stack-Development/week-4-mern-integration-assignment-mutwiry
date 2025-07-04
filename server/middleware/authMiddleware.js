@@ -44,15 +44,24 @@ export const protect = async (req, res, next) => {
     rateLimit.set(clientIp, clientData);
     
     // Get token from header or cookie
-    if (req.headers.authorization?.startsWith('Bearer')) {
-        // Set token from Bearer token in header
-        token = req.headers.authorization.split(' ')[1];
+    if (req.headers.authorization) {
+        if (req.headers.authorization.startsWith('Bearer ')) {
+            // Set token from Bearer token in header
+            token = req.headers.authorization.split(' ')[1];
+            console.log('Token found in Authorization header');
+        } else {
+            console.warn('Authorization header exists but does not start with Bearer');
+        }
     } else if (req.cookies?.token) {
         // Set token from cookie
         token = req.cookies.token;
+        console.log('Token found in cookies');
     } else if (req.signedCookies?.token) {
         // Set token from signed cookie
         token = req.signedCookies.token;
+        console.log('Token found in signed cookies');
+    } else {
+        console.log('No token found in request');
     }
 
     // Make sure token exists

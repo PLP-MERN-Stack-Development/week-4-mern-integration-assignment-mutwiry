@@ -10,13 +10,22 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Logout user - defined before use in useEffect
+  const logout = useCallback(() => {
+    setUser(null);
+    setAuthToken(null);
+    navigate('/login');
+  }, [navigate]);
+
   // Load user on initial load
   useEffect(() => {
     const loadUser = async () => {
       try {
         const token = localStorage.getItem('token');
         if (token) {
-          const userData = await getMeApi();
+          const response = await getMeApi();
+          // The user data is in response.data or the response itself
+          const userData = response.data || response;
           setUser(userData);
         }
       } catch (err) {
@@ -28,19 +37,27 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
-  }, []);
+  }, [logout]); // Now logout is defined before being used here
 
   // Register user
   const register = async (name, email, password) => {
     try {
       setError(null);
-      const data = await registerApi(name, email, password);
-      setUser(data.user);
-      setAuthToken(data.token);
-      return data;
+      const response = await registerApi(name, email, password);
+      // The user data is in response.data, not response.data.user
+      const userData = response.data || response;
+      setUser(userData);
+      // The token is in response.token or response.data.token
+      const token = response.token || (response.data && response.data.token);
+      if (token) {
+        setAuthToken(token);
+      }
+      return userData;
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
-      throw err;
+      console.error('Registration error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
@@ -48,22 +65,25 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setError(null);
-      const data = await loginApi(email, password);
-      setUser(data.user);
-      setAuthToken(data.token);
-      return data;
+      const response = await loginApi(email, password);
+      // The user data is in response.data, not response.data.user
+      const userData = response.data || response;
+      setUser(userData);
+      // The token is in response.token or response.data.token
+      const token = response.token || (response.data && response.data.token);
+      if (token) {
+        setAuthToken(token);
+      }
+      return userData;
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
-      throw err;
+      console.error('Login error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Login failed';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
-  // Logout user
-  const logout = useCallback(() => {
-    setUser(null);
-    setAuthToken(null);
-    navigate('/login');
-  }, [navigate]);
+
 
   return (
     <AuthContext.Provider
