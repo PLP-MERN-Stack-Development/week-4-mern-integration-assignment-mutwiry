@@ -1,23 +1,24 @@
 // server.js - Main server file for the MERN blog application
 
 // Import required modules
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import cookieParser from 'cookie-parser';
 
 // Import models (this will register them with Mongoose)
-require('./models');
+import './models/index.js';
 
 // Import database connection
-const connectDB = require('./config/db');
+import connectDB from './config/db.js';
 
 // Import routes
-const postRoutes = require('./routes/postRoutes');
-const {notFound, errorHandler} = require('./middleware/errorMiddleware');
-//const categoryRoutes = require('./routes/categoryRoutes');
-//const authRoutes = require('./routes/authRoutes');
+import postRoutes from './routes/postRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -25,11 +26,25 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Connect to MongoDB
+connectDB();
+
+// CORS configuration
+const corsOptions = {
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -44,8 +59,7 @@ if (process.env.NODE_ENV === 'development') {
 
 // API routes
 app.use('/api/posts', postRoutes);
-//app.use('/api/categories', categoryRoutes);
-//app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -78,4 +92,4 @@ process.on('unhandledRejection', (err) => {
   process.exit(1);
 });
 
-module.exports = app; 
+export default app; 

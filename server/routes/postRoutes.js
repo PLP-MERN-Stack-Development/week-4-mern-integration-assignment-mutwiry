@@ -1,10 +1,20 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
+import { protect } from '../middleware/authMiddleware.js';
+import {
+  getPosts,
+  getPostById,
+  createPost,
+  updatePost,
+  deletePost
+} from '../controllers/postController.js';
 
-const Post = require('../models/PostModel');
-const {getPosts, getPostById, createPost, updatePost, deletePost} = require('../controllers/postController');
- 
-router.route('/').get(getPosts).post(createPost);
-router.route('/:id').get(getPostById).put(updatePost).delete(deletePost);
+// Public routes
+router.route('/').get(getPosts);
+router.route('/:id').get(getPostById);
 
-module.exports = router;
+// Protected routes (require authentication)
+router.route('/').post(protect, createPost);
+router.route('/:id').put(protect, updatePost).delete(protect, deletePost);
+
+export default router;
