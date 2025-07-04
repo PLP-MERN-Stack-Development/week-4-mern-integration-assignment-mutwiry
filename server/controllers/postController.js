@@ -9,24 +9,39 @@ export const getPosts = asyncHandler(async (req, res) => {
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const posts = await Post.find({})
+    // Build the filter object
+    const filter = {};
+    if (req.query.keyword) {
+        const keyword = {
+            $regex: req.query.keyword,
+            $options: 'i', // Case-insensitive
+        };
+        filter.$or = [
+            { title: keyword },
+            { content: keyword }
+        ];
+    }
+
+    // Get total count with filters applied
+    const totalCount = await Post.countDocuments(filter);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const posts = await Post.find(filter)
         .populate('categories', 'name')
         .populate('user', 'name email')
         .sort({ createdAt: -1 })
         .limit(limit)
         .skip(skip);
-        
-    const count = await Post.countDocuments();
     
     res.status(200).json({ 
         success: true, 
         count: posts.length,
-        totalCount: count,
+        totalCount,
         data: posts,
         pagination: {
             currentPage: page,
-            totalPages: Math.ceil(count / limit),
-            hasNextPage: page < Math.ceil(count / limit),
+            totalPages,
+            hasNextPage: page < totalPages,
             hasPreviousPage: page > 1
         }
     });

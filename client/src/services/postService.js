@@ -2,8 +2,14 @@ import api from './api';
 
 const POSTS_API = '/posts';
 
-export const getAllPosts = (page = 1, limit = 10) => {
-  return api.get(POSTS_API, { params: { page, limit } });
+export const getAllPosts = (page = 1, keyword = '', limit = 10) => {
+  return api.get(POSTS_API, { 
+    params: { 
+      page, 
+      limit,
+      keyword: keyword || undefined // Only include keyword if it's not empty
+    } 
+  });
 };
 
 export const getPostById = (id) => api.get(`${POSTS_API}/${id}`);
