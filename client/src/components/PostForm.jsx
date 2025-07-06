@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import FileUpload from './FileUpload';
 
 export default function PostForm({ onSubmit, initialData = {}, isEditing = false, loading = false }) {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    category: ''
+    category: '',
+    featuredImage: ''
   });
   const [error, setError] = useState('');
   
@@ -20,7 +22,8 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
       setFormData({
         title: initialData.title || '',
         content: initialData.content || '',
-        category: initialData.category?._id || ''
+        category: initialData.category?._id || '',
+        featuredImage: initialData.featuredImage || ''
       });
     }
   }, [initialData, isEditing]);
@@ -38,22 +41,45 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
     console.log('Form submit triggered');
     setError('');
 
+    // Validate required fields
+    if (!formData.title || !formData.content || !formData.category) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
     try {
-      console.log('Calling onSubmit with data:', {
-        ...formData,
-        categories: formData.category ? [formData.category] : []
-      });
+      // Prepare the data to send - only include what's needed
+      const postData = {
+        title: formData.title.trim(),
+        content: formData.content.trim(),
+        category: formData.category, // Single category ID
+        featuredImage: formData.featuredImage?.trim() || ''
+      };
+
+      console.log('Calling onSubmit with data:', postData);
       
-      await onSubmit({ 
-        ...formData,
-        // Keep the field name consistent with the backend
-        categories: formData.category ? [formData.category] : []
-      });
-      console.log('onSubmit completed successfully');
+      // Call the onSubmit handler with the cleaned data
+      const response = await onSubmit(postData);
+      
+      // Only clear the form if the submission was successful
+      if (response) {
+        console.log('onSubmit completed successfully');
+        
+        // Clear the form after successful submission
+        setFormData({
+          title: '',
+          content: '',
+          category: '',
+          featuredImage: ''
+        });
+      }
+      
+      return response;
     } catch (err) {
       console.error('Error in form submission:', err);
-      setError(err.response?.data?.message || 'An error occurred while saving the post');
-      console.error('Form submission error:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'An error occurred while saving the post';
+      setError(errorMessage);
+      throw err; // Re-throw to allow parent component to handle the error
     }
   };
 
@@ -101,6 +127,13 @@ export default function PostForm({ onSubmit, initialData = {}, isEditing = false
             </option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <FileUpload 
+          onFileUploaded={(imageUrl) => setFormData(prev => ({ ...prev, featuredImage: imageUrl }))}
+          initialImage={formData.featuredImage}
+        />
       </div>
 
       <div>

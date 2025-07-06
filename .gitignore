@@ -147,6 +147,7 @@ dist
 build/tools
 build/coverage
 build/test-results
+build/upload
 
 scratchpad.md
 .windsurfrules.txt

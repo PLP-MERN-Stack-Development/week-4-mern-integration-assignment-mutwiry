@@ -28,6 +28,7 @@ import connectDB from './config/db.js';
 // Import routes
 import postRoutes from './routes/postRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 // Initialize Express app
@@ -47,15 +48,28 @@ connectDB().catch(err => {
 const corsOptions = {
   origin: 'http://localhost:5173',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Cache-Control',
+    'Pragma',
+    'Expires'
+  ],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  optionsSuccessStatus: 204
 };
 
 // Middleware
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Serve static files from uploads directory
+const uploadsPath = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -77,6 +91,7 @@ if (process.env.NODE_ENV === 'development') {
 // API routes with versioning
 app.use('/api/v1/posts', postRoutes);
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/upload', uploadRoutes);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {

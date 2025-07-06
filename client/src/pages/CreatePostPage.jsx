@@ -3,6 +3,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import PostForm from '../components/PostForm';
 import { createPost } from '../services/postService';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function CreatePost() {
   const [error, setError] = useState('');
@@ -41,22 +43,68 @@ export default function CreatePost() {
     setError('');
     
     try {
+      // Validate required fields
+      if (!postData.category) {
+        throw new Error('Please select a category');
+      }
+
       // Prepare the data to send
       const postToCreate = {
         title: postData.title,
         content: postData.content,
-        categories: postData.category ? [postData.category] : []
+        category: postData.category, // Send as single category ID
+        featuredImage: postData.featuredImage || ''
       };
       
-      console.log('Post data being sent:', postToCreate);
+      console.log('Post data being sent to API:', {
+        ...postToCreate,
+        // Log the category type for debugging
+        _categoryType: typeof postToCreate.category,
+        _categoryValue: postToCreate.category
+      });
       
       // Make the API call
-      await execute(postToCreate);
+      const response = await execute(postToCreate);
+      console.log('API Response:', response);
       
+      if (response?.data?.success) {
+        // Show success message
+        toast.success('Post created successfully!');
+        
+        // Redirect to the home page after a short delay
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+        
+        return response.data;
+      } else {
+        throw new Error('Failed to create post: Invalid response from server');
+      }
     } catch (err) {
-      console.error('Error in form submission:', err);
-      setError(err.message || 'Failed to create post. Please try again.');
-      throw err; // Re-throw to be caught by PostForm
+      console.error('Error in form submission:', {
+        error: err,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      });
+      
+      let errorMessage = 'Failed to create post. Please try again.';
+      
+      if (err.response) {
+        // Server responded with an error
+        errorMessage = err.response.data?.message || 
+                      `Server error: ${err.response.status} ${err.response.statusText}`;
+      } else if (err.request) {
+        // Request was made but no response received
+        errorMessage = 'No response from server. Please check your connection.';
+      } else {
+        // Something happened in setting up the request
+        errorMessage = err.message || 'Error setting up request';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
     }
   };
 

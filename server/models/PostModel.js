@@ -23,7 +23,11 @@ const postSchema = new mongoose.Schema({
     },
     featuredImage: {
         type: String,
-        default: 'default-post.jpg',
+        default: '',
+    },
+    imagePublicId: {
+        type: String,
+        default: '',
     },
     // Changed from 'author' to 'user' to match our auth system
     user: {
@@ -31,17 +35,20 @@ const postSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    categories: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
+    categories: {
+        type: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Category',
+            required: true
+        }],
         required: [true, 'Please add at least one category'],
         validate: {
             validator: function(v) {
-                return v && v.length > 0;
+                return Array.isArray(v) && v.length > 0;
             },
             message: 'Please add at least one category'
         }
-    }],
+    },
     status: {
         type: String,
         enum: ['draft', 'published', 'archived'],

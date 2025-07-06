@@ -8,6 +8,9 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   }
 });
 
@@ -15,10 +18,16 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Log request
-    console.log(`[API] ${config.method?.toUpperCase() || 'REQUEST'} ${config.url}`);
-    if (config.data) {
-      console.log('[API] Request data:', config.data);
-    }
+    console.log(`[API] ${config.method?.toUpperCase() || 'REQUEST'} ${config.url}`, {
+      url: config.url,
+      method: config.method,
+      data: config.data,
+      headers: {
+        ...config.headers,
+        // Don't log the entire auth token, just that it exists
+        Authorization: config.headers.Authorization ? '[REDACTED]' : 'Not set'
+      }
+    });
 
     // Add auth token if available
     const token = localStorage.getItem('token');
@@ -26,8 +35,6 @@ api.interceptors.request.use(
       // Ensure the token is properly formatted
       const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
       config.headers.Authorization = formattedToken;
-      
-      // Log the token being sent (remove in production)
       console.log('[API] Using auth token:', formattedToken.substring(0, 15) + '...');
     } else {
       console.warn('[API] No auth token found');
@@ -45,27 +52,44 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Log successful responses
-    console.log(`[API] ${response.config.method?.toUpperCase() || 'REQUEST'} ${response.config.url} - ${response.status}`);
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[API] Response data:', response.data);
-    }
+    console.log(`[API] ${response.config.method?.toUpperCase() || 'RESPONSE'} ${response.config.url}`, {
+      status: response.status,
+      data: response.data
+    });
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
-    
-    // Log the error
+    // Log error responses
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error(
-        `[API] Error ${error.response.status} (${error.response.statusText})`,
-        `for ${originalRequest.method?.toUpperCase()} ${originalRequest.url}`
-      );
-      console.error('[API] Error details:', error.response.data);
+      console.error(`[API] Error ${error.response.status} ${error.response.statusText}:`, {
+        url: error.config.url,
+        method: error.config.method,
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers,
+        request: {
+          headers: error.config.headers,
+          data: error.config.data,
+          params: error.config.params
+        }
+      });
+      
+      // Add more descriptive error message based on status code
+      if (error.response.status === 401) {
+        error.message = 'Authentication required. Please log in again.';
+      } else if (error.response.status === 403) {
+        error.message = 'You do not have permission to perform this action.';
+      } else if (error.response.status === 404) {
+        error.message = 'The requested resource was not found.';
+      } else if (error.response.status === 500) {
+        error.message = 'A server error occurred. Please try again later.';
+      }
+      
+      // Attach server response to error object
+      error.serverResponse = error.response.data;
     } else if (error.request) {
-      // The request was made but no response was received
       console.error('[API] No response received:', error.request);
+      error.message = 'No response from server. Please check your connection.';
     } else {
       // Something happened in setting up the request that triggered an Error
       console.error('[API] Request setup error:', error.message);
