@@ -1,96 +1,38 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import useApi from '../hooks/useApi';
-import { getAllPosts as postService } from '../services/postService';
+import { getPosts } from '../services/postService';
 import PostItem from '../components/PostItem';
 import { PostCardSkeleton } from '../components/ui/Skeleton';
 
 export default function HomePage() {
   // State management
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [posts, setPosts] = useState([]);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    hasNextPage: false,
-    hasPreviousPage: false
-  });
-  
-  // Create a stable API function that doesn't change between renders
-  const fetchPosts = useCallback((page = 1, search = '') => {
-    return postService(page, search);
-  }, []);
 
-  // Use our custom hook to call the API with pagination and search
-  const { data, error, loading, execute } = useApi(fetchPosts);
-  
-  // Process the API response when data changes
-  useEffect(() => {
-    if (!data) return;
-    
-    console.log('Processing API response:', { data });
-    
-    // Handle different possible response structures
-    let postsData = [];
-    let paginationData = null;
-    
-    // Case 1: Data is an array (direct posts array)
-    if (Array.isArray(data)) {
-      postsData = data;
-    }
-    // Case 2: Data has a `data` property that's an array
-    else if (data.data && Array.isArray(data.data)) {
-      postsData = data.data;
-      // Check for pagination in various possible locations
-      paginationData = data.pagination || data.meta?.pagination || null;
-    }
-    // Case 3: Data has a nested `data` property that's an array
-    else if (data.data?.data && Array.isArray(data.data.data)) {
-      postsData = data.data.data;
-      paginationData = data.data.pagination || data.data.meta?.pagination || null;
-    }
-    
-    // Update posts state
-    setPosts(postsData);
-    
-    // Update pagination state if pagination data exists
-    if (paginationData) {
-      setPagination({
-        currentPage: paginationData.currentPage || 1,
-        totalPages: paginationData.totalPages || 1,
-        totalItems: paginationData.totalItems || postsData.length,
-        hasNextPage: paginationData.hasNextPage || false,
-        hasPreviousPage: paginationData.hasPreviousPage || false
-      });
-    }
-  }, [data]);
-  
-  // Execute the API call when dependencies change
-  useEffect(() => {
-    execute(currentPage, searchTerm);
-  }, [currentPage, searchTerm, execute]);
-  
-  // Handle search form submission
-  const handleSearch = (e) => {
+  // API integration
+  const { data: postsData, loading, error, request } = useApi(getPosts);
+
+  // Handlers
+  const handleSearch = useCallback((e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const searchValue = formData.get('search');
     setSearchTerm(searchValue);
-    setCurrentPage(1); // Reset to first page on new search
-  };
-  
-  // Handle pagination
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setCurrentPage(newPage);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
+    request(1, searchValue);
+  }, [request]);
 
-  // Loading state
-  if (loading && !data) {
+  const handlePageChange = useCallback((page) => {
+    request(page, searchTerm);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [request, searchTerm]);
+
+  useEffect(() => {
+    request(1, '');
+  }, [request]);
+
+  console.log('HomePage state:', { postsData, loading, error });
+
+  // Render logic
+  if (loading && !postsData) {
     return (
       <div className="min-h-screen flex flex-col items-center p-4">
         <div className="w-full max-w-4xl">
@@ -105,7 +47,6 @@ export default function HomePage() {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -113,7 +54,7 @@ export default function HomePage() {
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error loading posts</h1>
           <p className="text-gray-600 mb-4">{error.message || 'An error occurred while fetching posts.'}</p>
           <button
-            onClick={() => execute(currentPage, searchTerm)}
+            onClick={() => request(1, '')}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
             Retry
@@ -122,9 +63,10 @@ export default function HomePage() {
       </div>
     );
   }
-  
-  // Empty state
-  if (!loading && posts.length === 0) {
+
+  const posts = postsData?.data;
+
+  if (!posts || posts.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="text-center max-w-md">
@@ -138,11 +80,11 @@ export default function HomePage() {
             <button
               onClick={() => {
                 setSearchTerm('');
-                setCurrentPage(1);
+                request(1, '');
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
             >
-              Clear search
+              Clear Search
             </button>
           )}
         </div>
@@ -181,14 +123,14 @@ export default function HomePage() {
           </div>
 
           {/* Pagination */}
-          {pagination && pagination.totalPages > 1 && (
+          {postsData?.pagination && postsData?.pagination?.totalPages > 1 && (
             <div className="mt-12">
               <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                 <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={!pagination.hasPreviousPage}
+                  onClick={() => handlePageChange(postsData?.pagination?.currentPage - 1)}
+                  disabled={!postsData?.pagination?.hasPreviousPage}
                   className={`relative inline-flex items-center px-4 py-2 rounded-l-md border ${
-                    pagination.hasPreviousPage
+                    postsData?.pagination?.hasPreviousPage
                       ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                       : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
                   } text-sm font-medium`}
@@ -197,12 +139,12 @@ export default function HomePage() {
                 </button>
                 
                 {/* Page numbers */}
-                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
+                {Array.from({ length: postsData?.pagination?.totalPages }, (_, i) => i + 1).map((page) => (
                   <button
                     key={page}
                     onClick={() => handlePageChange(page)}
                     className={`relative inline-flex items-center px-4 py-2 border ${
-                      page === pagination.currentPage
+                      page === postsData?.pagination?.currentPage
                         ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
                         : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                     } text-sm font-medium`}
@@ -212,10 +154,10 @@ export default function HomePage() {
                 ))}
                 
                 <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={!pagination.hasNextPage}
+                  onClick={() => handlePageChange(postsData?.pagination?.currentPage + 1)}
+                  disabled={!postsData?.pagination?.hasNextPage}
                   className={`relative inline-flex items-center px-4 py-2 rounded-r-md border ${
-                    pagination.hasNextPage
+                    postsData?.pagination?.hasNextPage
                       ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                       : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
                   } text-sm font-medium`}
@@ -225,11 +167,11 @@ export default function HomePage() {
               </nav>
               
               <div className="hidden md:flex justify-center mt-4 text-sm text-gray-500">
-                Showing {pagination.currentPage === 1 ? 1 : (pagination.currentPage - 1) * 10 + 1}
+                Showing {postsData?.pagination?.currentPage === 1 ? 1 : (postsData?.pagination?.currentPage - 1) * 10 + 1}
                 {' to '}
-                {Math.min(pagination.currentPage * 10, pagination.totalItems)}
+                {Math.min(postsData?.pagination?.currentPage * 10, postsData?.pagination?.totalItems)}
                 {' of '}
-                {pagination.totalItems} posts
+                {postsData?.pagination?.totalItems} posts
               </div>
             </div>
           )}

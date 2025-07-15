@@ -46,7 +46,7 @@ connectDB().catch(err => {
 
 // CORS configuration
 const corsOptions = {
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
@@ -89,9 +89,9 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // API routes with versioning
-app.use('/api/v1/posts', postRoutes);
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/upload', uploadRoutes);
+app.use('/posts', postRoutes);
+app.use('/auth', authRoutes);
+app.use('/upload', uploadRoutes);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {

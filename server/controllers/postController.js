@@ -12,7 +12,9 @@ export const getPosts = asyncHandler(async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build the filter object
-    const filter = {};
+    const filter = {
+        status: { $in: ['published', 'draft'] }
+    };
     if (req.query.keyword) {
         const keyword = {
             $regex: req.query.keyword,
